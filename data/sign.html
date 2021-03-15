@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <script src="jquery-3.6.0.min.js"></script>
+  <script src="bootstrap.bundle.min.js"></script>
+  <link rel="stylesheet" type="text/css" href="bootstrap.min.css">
+  <meta name="author" content="Valerio Vaccaro">
+  <title>SFYL Wallet</title>
+</head>
+<body>
+    <div class="container">
+      <div class="jumbotron mt-3">
+        <h3>Sign PSBT</h3>
+        <ul>
+          <li>Create a new PSBT <code>bitcoin-cli -testnet -rpcwallet="watchman" walletcreatefundedpsbt '[]' '[{"%ADDRESS%":0.001}]' 0 '{"includeWatching":true}' true</code></li>
+          <li>Use SFYL Wallet and sign your PSBT.</li>
+        </ul>
+        <form action="/sign" method="get">
+          <div class="form-group">
+            <label for="exampleInputPath1">Unsigned PSBT</label>
+            <input type="hidden" name="command" value="psbt">
+            <textarea class="form-control" rows="3" name="unsignedpsbt" placeholder="Enter a psbt">%UNSIGNEDPSBT%</textarea>
+          </div>
+          <button type="submit" class="btn btn-warning">Sign PSBT</button>
+        </form>
+        <br/>
+        <code>%SIGNEDPSBT%</code>
+        <br/>
+        <ul>
+          <li>Combine PSBT <code>bitcoin-cli -testnet combinepsbt '["%UNSIGNEDPSBT%","%SIGNEDPSBT%"]'</code></li>
+          <li>Finalize PSBT <code>bitcoin-cli -testnet finalizepsbt "..."</code></li>
+          <li>Broadcast transaction <code>bitcoin-cli -testnet sendrawtransaction "..."</code></li>
+        </ul>
+        <br/>
+        <hr/>
+        <h3>Sign message</h3>
+        <p>Sign a message.</p>
+        <form action="/sign" method="get">
+          <div class="form-group">
+            <label for="exampleInputPath1">Message</label>
+            <input type="hidden" name="command" value="message">
+            <textarea class="form-control" rows="3" name="message" placeholder="Enter a message">%MESSAGE%</textarea>
+            <input type="text" rows="5" class="form-control" id="exampleInputPath1" name="path" placeholder="Enter a path" value="%PATH%/%FIRST%/%SECOND%">
+          </div>
+          <button type="submit" class="btn btn-success">Sign message</button>
+        </form>
+        <br/>
+        <code>%SIGNATURE%</code>
+      </div>
+    </div>
+
+    <nav class="navbar fixed-bottom navbar-expand-sm navbar-dark bg-dark">
+      <a class="navbar-brand" href="#">SFYL Wallet</a>
+      <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarCollapse" aria-controls="navbarCollapse" aria-expanded="false" aria-label="Toggle navigation">
+        <span class="navbar-toggler-icon"></span>
+      </button>
+      <div class="collapse navbar-collapse" id="navbarCollapse">
+        <ul class="navbar-nav mr-auto">
+          <li class="nav-item">
+            <a class="nav-link" href="/">Home</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" href="/address">Get Address</a>
+          </li>
+          <li class="nav-item active">
+            <a class="nav-link" href="/sign">Sign PSBT</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" href="/settings">Settings</a>
+          </li>
+        </ul>
+      </div>
+    </nav>
+</body>
+</html>

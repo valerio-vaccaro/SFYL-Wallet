@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <script src="jquery-3.6.0.min.js"></script>
+  <script src="bootstrap.bundle.min.js"></script>
+  <link rel="stylesheet" type="text/css" href="bootstrap.min.css">
+  <meta name="author" content="Valerio Vaccaro">
+  <title>SFYL Wallet</title>
+</head>
+<body>
+    <div class="container">
+      <div class="jumbotron mt-3">
+        <h1>Network</h1>
+        <p>Actually the wallet works only on Testnet.</p>
+        <hr/>
+        <h1>Mnemonic</h1>
+        <form action="/settings" method="get">
+          <div class="form-group">
+            <label for="exampleInputMnemonic1">Change mnemonic</label>
+            <input type="hidden" name="command" value="setmnemonic">
+            <input type="text" class="form-control" id="exampleInputMnemonic1" name="mnemonic" aria-describedby="mnemoniclHelp" placeholder="Enter a mnemonic" value="%MNEMONIC%">
+            <small id="mnemonicHelp" class="form-text text-muted">We'll never share your mnemonic with anyone else.</small>
+          </div>
+          <button type="submit" class="btn btn-danger">Set mnemonic</button>
+        </form>
+        <hr/>
+        <h1>Derivation path</h1>
+        <form action="/settings" method="get">
+          <div class="form-group">
+            <label for="exampleInputPath1">Change derivation path</label>
+            <input type="hidden" name="command" value="setpath">
+            <input type="text" class="form-control" id="exampleInputPath1" name="path" placeholder="Enter a path" value="%PATH%">
+          </div>
+          <button type="submit" class="btn btn-danger">Set path</button>
+        </form>
+      </div>
+    </div>
+
+    <nav class="navbar fixed-bottom navbar-expand-sm navbar-dark bg-dark">
+      <a class="navbar-brand" href="#">SFYL Wallet</a>
+      <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarCollapse" aria-controls="navbarCollapse" aria-expanded="false" aria-label="Toggle navigation">
+        <span class="navbar-toggler-icon"></span>
+      </button>
+      <div class="collapse navbar-collapse" id="navbarCollapse">
+        <ul class="navbar-nav mr-auto">
+          <li class="nav-item">
+            <a class="nav-link" href="/">Home</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" href="/address">Get Address</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" href="/sign">Sign PSBT</a>
+          </li>
+          <li class="nav-item active">
+            <a class="nav-link" href="/settings">Settings</a>
+          </li>
+        </ul>
+      </div>
+    </nav>
+</body>
+</html>

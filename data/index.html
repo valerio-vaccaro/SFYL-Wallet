@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <script src="jquery-3.6.0.min.js"></script>
+  <script src="bootstrap.bundle.min.js"></script>
+  <script src="qrcode.min.js"></script>
+  <link rel="stylesheet" type="text/css" href="bootstrap.min.css">
+  <meta name="author" content="Valerio Vaccaro">
+  <title>SFYL Wallet</title>
+</head>
+<body>
+    <div class="container">
+      <div class="jumbotron mt-3">
+        <h1>SFYL Wallet</h1>
+        <p>Network: %NETWORK%</p>
+        <hr/>
+        <h3>Extended pubkey</h1>
+        <br/>
+        <center><div id="qrcode_xpub"></div>
+        <script type="text/javascript">
+        new QRCode(document.getElementById("qrcode_xpub"), "%XPUB%");
+        </script>
+        <br/>
+        <p style="word-wrap: break-word;">%XPUB%</p>
+        </center>
+        <hr/>
+        <h3>Import in Bitcoin Core</h1>
+        <center><p style="word-wrap: break-word;">Core XPUB: %XPUBCORE%</p></center>
+        <ul>
+          <li>Create a new wallet (Optional) <code>bitcoin-cli -testnet createwallet "watchman" true</code></li>
+          <li>Import descriptors <code>bitcoin-cli -testnet -rpcwallet="watchman" importmulti '[{"desc": "%DESCRIPTORCORE%", "internal": false, "range": [0, 1000], "timestamp": "now", "keypool": true, "watchonly": true}, {"desc": "%DESCRIPTORCORECHANGE%", "internal": true, "range": [0, 1000], "timestamp": "now", "keypool": true, "watchonly": true}]'</code></li>
+        </ul>
+        <hr/>
+        <h3>Status</h3>
+        <p>Chip ID: %CHIPID%</p>
+        <p>MAC address: %MAC%</p>
+        <p>Battery: %BATTERY%</p>
+        <p>Heap: %HEAP%</p>
+        <hr/>
+        <p>Open source released under MIT license (https://github.com/valerio-vaccaro/SFYL-Wallet).</p>
+        <p>Based on uBitcoin lib and tutorial (https://github.com/micro-bitcoin/uBitcoin).</p>
+        <center><a class="btn btn-primary btn-lg" href="/bitcoin.pdf" target="_blank">Bitcoin whitepaper</a></center>
+      </div>
+    </div>
+
+    <nav class="navbar fixed-bottom navbar-expand-sm navbar-dark bg-dark">
+      <a class="navbar-brand" href="#">SFYL Wallet</a>
+      <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarCollapse" aria-controls="navbarCollapse" aria-expanded="false" aria-label="Toggle navigation">
+        <span class="navbar-toggler-icon"></span>
+      </button>
+      <div class="collapse navbar-collapse" id="navbarCollapse">
+        <ul class="navbar-nav mr-auto">
+          <li class="nav-item active">
+            <a class="nav-link" href="/">Home</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" href="/address">Get Address</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" href="/sign">Sign PSBT</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" href="/settings">Settings</a>
+          </li>
+        </ul>
+      </div>
+    </nav>
+</body>
+</html>
