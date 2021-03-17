@@ -38,6 +38,10 @@ String signedpsbt = "";
 String message = "Buy Bitcoin!";
 String signature = "";
 
+String ssid = "";
+String password = "";
+boolean showAp = false;
+
 extern const unsigned char logoIcon[134*28];
 #define DEFAULT_BRIGHTNESS                          45
 U8G2_FOR_ADAFRUIT_GFX u8g2Fonts;
@@ -59,19 +63,15 @@ void setupDisplay(){
 }
 
 void mainPage(bool fullScreen){
-    uint16_t tbw, tbh;
-    static int16_t lastX, lastY;
-    static uint16_t lastW, lastH;
     static uint8_t hh = 0, mm = 0;
     static uint8_t lastDay = 0;
-    static int16_t getX, getY;
-    static uint16_t getW, getH;
     char buff[64] = "00:00";
-    int battPerc, battPercView, battLoad;
+    int battPerc, battPercView;
+    //int battLoad;
 
     RTC_Date d = rtc->getDateTime();
     if (mm == d.minute && !fullScreen) {
-        return ;
+        return ; // nothing changed
     }
 
     mm = d.minute;
@@ -84,70 +84,78 @@ void mainPage(bool fullScreen){
     snprintf(buff, sizeof(buff), "%02d:%02d", hh, mm);
 
     if (fullScreen) {
-        lastX = 25;
-        lastY = 100;
         // Print logo
         ePaper->drawBitmap(5, 5, logoIcon, 134, 28, GxEPD_BLACK);
 
         // Print battery icon
-        battLoad=0;
-        if (twatch->power->isVBUSPlug())                // check if battery is charging
-        {
-          battLoad=1;
-        }
-        battPerc=twatch->power->getBattPercentage();    // get the status of the battery
-        battPercView=((battPerc+20)/20);               // there are 10 different states to display the percentage of battery charge
-        Serial.print(battPerc);
-        Serial.print(battPercView);
+        /*battLoad=0;
+        if (twatch->power->isVBUSPlug())               // check if battery is charging
+          battLoad=1;*/
+        battPerc=twatch->power->getBattPercentage();   // get the status of the battery
+        battPercView=((battPerc+10)/20);               // there are 10 different states to display the percentage of battery charge
 
         u8g2Fonts.setFont(u8g2_font_battery19_tn);
-        u8g2Fonts.setCursor(175, 20);                // start writing at this position
-        u8g2Fonts.setFontDirection(3);              // left to right (this is default)
+        u8g2Fonts.setCursor(175, 25);                // start writing at this position
+        u8g2Fonts.setFontDirection(3);               // left to right (this is default)
         u8g2Fonts.print(battPercView);
-        u8g2Fonts.setFontDirection(0);              // left to right (this is default)
+        u8g2Fonts.setFontDirection(0);               // left to right (this is default)
 
-
+        // draw line
         ePaper->drawFastHLine(10, 40, ePaper->width() - 20, GxEPD_BLACK);
-        ePaper->drawFastHLine(10, 150, ePaper->width() - 20, GxEPD_BLACK);
 
-        u8g2Fonts.setFont(u8g2_font_inr38_mn  ); // select u8g2 font from here: https://github.com/olikraus/u8g2/wiki/fntlistall
-
-        u8g2Fonts.setCursor(lastX, lastY);                // start writing at this position
-        u8g2Fonts.print(buff);
-
-        /* calculate the size of the box into which the text will fit */
-        lastH = u8g2Fonts.getFontAscent() - u8g2Fonts.getFontDescent();
-        lastW = u8g2Fonts.getUTF8Width(buff);
-
-        u8g2Fonts.setFont(u8g2_font_wqy16_t_gb2312a); // select u8g2 font from here: https://github.com/olikraus/u8g2/wiki/fntlistall
-
-        tbh = u8g2Fonts.getFontAscent() - u8g2Fonts.getFontDescent();
-        tbw = u8g2Fonts.getUTF8Width("SFYL Wallet");
-
-        int16_t x, y;
-        x = ((ePaper->width() - tbw) / 2) ;
-        y = ((ePaper->height() - tbh) / 2) + 40  ;
-
-        u8g2Fonts.setCursor(x, y);
-        u8g2Fonts.print(buff);
-        u8g2Fonts.setCursor(20, y + 50);
+        // draw title
+        u8g2Fonts.setFont(u8g2_font_helvB18_tf);
+        int offset_x = (ePaper->width() - u8g2Fonts.getUTF8Width("SFYL Wallet")) / 2;
+        u8g2Fonts.setCursor(offset_x, 70);
         u8g2Fonts.print("SFYL Wallet");
-        getX = u8g2Fonts.getCursorX();
-        getY = u8g2Fonts.getCursorY();
-        getH  = u8g2Fonts.getFontAscent() - u8g2Fonts.getFontDescent();
-        getW = u8g2Fonts.getUTF8Width("1000步");
+
+        // draw clock
+        u8g2Fonts.setFont(u8g2_font_7Segments_26x42_mn);
+        u8g2Fonts.setCursor(25, 120);
+        u8g2Fonts.print(buff);
+
+        // draw line
+        ePaper->drawFastHLine(10, 130, ePaper->width() - 20, GxEPD_BLACK);
+
+        if (showAp){
+          // draw strings
+          ePaper->fillRect(20, 140, ePaper->width() - 40, 169, GxEPD_WHITE);
+          u8g2Fonts.setFont(u8g2_font_helvB10_tf); // select u8g2 font from here: https://github.com/olikraus/u8g2/wiki/fntlistall
+          u8g2Fonts.setCursor(20, 150);
+          u8g2Fonts.print("SSID: "+ssid);
+          u8g2Fonts.setCursor(20, 170);
+          u8g2Fonts.print("Password: "+password);
+        } else {
+          // draw strings
+          ePaper->fillRect(20, 140, ePaper->width() - 40, 169, GxEPD_WHITE);
+          u8g2Fonts.setFont(u8g2_font_helvB10_tf); // select u8g2 font from here: https://github.com/olikraus/u8g2/wiki/fntlistall
+          u8g2Fonts.setCursor(20, 150);
+          u8g2Fonts.print("SSID: ********");
+          u8g2Fonts.setCursor(20, 170);
+          u8g2Fonts.print("Password: ********");
+        }
+
+        // draw line
+        ePaper->drawFastHLine(10, 180, ePaper->width() - 20, GxEPD_BLACK);
+
+        // draw motto
+        offset_x = (ePaper->width() - u8g2Fonts.getUTF8Width("PER ASPERA AD ASTRA")) / 2;
+        u8g2Fonts.setCursor(offset_x, 200);
+        u8g2Fonts.print("PER ASPERA AD ASTRA");
+
         ePaper->update();
-
-
     } else {
-        u8g2Fonts.setFont(u8g2_font_inr38_mn); // select u8g2 font from here: https://github.com/olikraus/u8g2/wiki/fntlistall
-        ePaper->fillRect(lastX, lastY - u8g2Fonts.getFontAscent() - 3, lastW, lastH, GxEPD_WHITE);
+        // update clock
+        ePaper->fillRect(20, 70, ePaper->width() - 40, 49, GxEPD_WHITE);
+        ePaper->updateWindow(20, 70, ePaper->width() - 40, 49,  false);
+        ePaper->fillRect(20, 70, ePaper->width() - 40, 49, GxEPD_WHITE);
         ePaper->fillScreen(GxEPD_WHITE);
         ePaper->setTextColor(GxEPD_BLACK);
-        lastW = u8g2Fonts.getUTF8Width(buff);
-        u8g2Fonts.setCursor(lastX, lastY);
+        u8g2Fonts.setFont(u8g2_font_7Segments_26x42_mn);
+        u8g2Fonts.setCursor(25, 120);
         u8g2Fonts.print(buff);
-        ePaper->updateWindow(lastX, lastY - u8g2Fonts.getFontAscent() - 3, lastW, lastH, false);
+
+        ePaper->updateWindow(20, 70, ePaper->width() - 40, 50,  false);
     }
 }
 
@@ -248,6 +256,10 @@ void setup() {
     // Initialize the ink screen
     setupDisplay();
 
+    // AP ssid and password
+    ssid = "SFYL_"+String(esp_random(), HEX);
+    password = String(esp_random(), HEX);
+
     // Initialize the interface
     mainPage(true);
 
@@ -320,11 +332,7 @@ void setup() {
     pub = xpub_key.child(0).child(0);
     address = pub.segwitAddress(&Testnet);
 
-    // AP
-    String ssid = "SFYL_"+String(esp_random(), HEX);
-    String password = String(esp_random(), HEX)+String(esp_random(), HEX);
-    ssid = "ESP32";
-    password = "12345678";
+    // WIFI
     WiFi.softAP(ssid.c_str(), password.c_str(), 1, 0, 1); // Max 1 connection
     delay(100);
 
@@ -471,60 +479,11 @@ void loop()
         // Get interrupt status
         power->readIRQ();
         if (power->isPEKShortPressIRQ()) {
-            //twatch->bl->isOn() ? twatch->bl->off() : twatch->bl->adjust(DEFAULT_BRIGHTNESS);
-
-            // using empty password
-            HDPrivateKey root(mnemonic, "");
-            // now we can check how it is converted to xprv
-            Serial.println(root);
-
-            // derive account according to BIP-84 for testnet
-            HDPrivateKey account = root.derive(path);
-            // avoid funny name
-            account.type = UNKNOWN_TYPE;
-            // print account and it's xpub
-            Serial.println(account);
-            HDPublicKey xpub = account.xpub();
-            Serial.println(xpub);
-
-            // derive and print 5 different addresses
-            HDPublicKey pub;
-            for(int i=0; i<5; i++){
-                // deriving in a different manner
-                pub = xpub.child(0).child(i);
-                Serial.println(pub.segwitAddress(&Testnet));
-            }
-
-            PSBT psbt;
-            psbt.parseBase64("cHNidP8BAHECAAAAAbvujNVeCWqb0qj49V0FE4yNqzxNp/alDjJf6tfrDmLvAAAAAA"
-                "D+////AgIMAwAAAAAAFgAUeVBepLdGFMTDXaEd8BcxXAjVXWSghgEAAAAAABYAFI0z1+/eJK2dc4lUc"
-                "rmdIBEJbibsAAAAAAABAR/gkwQAAAAAABYAFBFV/d7WeO0DA8PtpNcne1avYrsIIgYCSUlKvX7bM2uW"
-                "3icko9ATHDMcEV097AIjBJVvcYapQoAYpKDu61QAAIABAACAAAAAgAAAAAAAAAAAACICA0FKXUUYI9e"
-                "Fz3Kf5iDa4Iz4fGUp1/a27bGx4zBNKl1mGKSg7utUAACAAQAAgAAAAIABAAAAAAAAAAAA");
-
-            Serial.println("Transactions details:");
-            Serial.println("Inputs");
-            // going through all inputs
-            for(int i=0; i<psbt.tx.inputsNumber; i++){
-              //Serial.print(String(psbt.tx.txIns[i].hash));
-            }
-            Serial.println("Outputs:");
-            // going through all outputs
-            for(int i=0; i<psbt.tx.outputsNumber; i++){
-              Serial.print(psbt.tx.txOuts[i].address(&Testnet));
-              Serial.print(" -> ");
-              // You can also use .btcAmount() function that returns a float in whole Bitcoins
-              Serial.print(int(psbt.tx.txOuts[i].amount));
-              Serial.println(" sat");
-            }
-            Serial.print("Fee: ");
-            // Arduino can't print 64-bit ints so we need to convert it to int
-            Serial.print(int(psbt.fee()));
-            Serial.println(" sat");
-
-            psbt.sign(root);
-            Serial.println(psbt.toBase64());
-
+            twatch->bl->isOn() ? twatch->bl->off() : twatch->bl->adjust(DEFAULT_BRIGHTNESS);
+        }
+        if (power->isPEKLongtPressIRQ()) {
+            showAp =  !showAp;
+            mainPage(true);
         }
         // After the interruption, you need to manually clear the interruption status
         power->clearIRQ();
