@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta http-equiv="content-type" content="text/html; charset=windows-1252">
+    <script src="jquery-3.6.0.min.js"></script>
+    <script src="bootstrap.bundle.min.js"></script>
+    <script src="qrcode.min.js"></script>
+    <link rel="stylesheet" type="text/css" href="bootstrap.min.css">
+    <meta name="author" content="Valerio Vaccaro">
+    <title>SFYL Wallet</title>
+  </head>
+  <body>
+    <div class="container">
+      <div class="jumbotron mt-3"> <img src="btc.png" width="400">
+        <hr>
+        <h1>Build it!</h1>
+        <h3>Buy the hardware</h3>
+        <p>This project is based on <a href="http://www.lilygo.cn/prod_view.aspx?TypeId=50036&Id=1318&FId=t3:50036:3">Lilygo T-Block board with Eink display.</a></p>
+        <p>You can easily find this board on Amazon and AliExpress.</p>
+        <h3>Load the firmware</h3>
+        <p>Clone the project from <a href="https://github.com/valerio-vaccaro/SFYL-Wallet"
+            target="_blank">github.com/valerio-vaccaro/SFYL-Wallet</a>.</p>
+        <p>Open the project on Platform.io.</p>
+        <p>Build and load the firmware.</p>
+        <p>Load pages, javascript and default wallet with the command <code>pio run --target uploadfs</code>.</p>
+        <p>Enjoy your new wallet</p>
+        
+      </div>
+    </div>
+    <nav class="navbar fixed-bottom navbar-expand-sm navbar-dark bg-dark"> <a class="navbar-brand"
+        href="https://sfyl.info">SFYL
+        Wallet</a> <button class="navbar-toggler" type="button" data-toggle="collapse"
+        data-target="#navbarCollapse"
+        aria-controls="navbarCollapse"
+        aria-expanded="false"
+        aria-label="Toggle navigation">
+        <span class="navbar-toggler-icon"></span> </button>
+      <div class="collapse navbar-collapse" id="navbarCollapse">
+        <ul class="navbar-nav mr-auto">
+          <li class="nav-item active"> <a class="nav-link" href="index.html">Home</a> </li>
+          <li class="nav-item"> <a class="nav-link" href="build.html">Build
+              it!</a> </li>
+          <li class="nav-item"> <a class="nav-link" href="use.html">Let's use
+              it!</a> </li>
+          <li class="nav-item"> <a class="nav-link" href="social.html">Let's
+              chat about it!??????</a></li>
+        </ul>
+      </div>
+    </nav>
+    
+  </body>
+</html>
