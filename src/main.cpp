@@ -14,23 +14,32 @@ Upload spifs content with the command: pio run --target uploadfs
 #include <Bitcoin.h>
 #include <PSBT.h>
 #include <Hash.h>
-#include "WiFi.h"
-#include "SPIFFS.h"
-#include "ESPAsyncWebServer.h"
+#include <WiFi.h>
+#include <SPIFFS.h>
+#include <ESPAsyncWebServer.h>
+#include <esp_task_wdt.h>
+#include <ESPmDNS.h>
+
+// Disable Tcp Watchdog
+#define CONFIG_ASYNC_TCP_USE_WDT 0
 
 AsyncWebServer server(80);
 
-String network = "testnet";
-String mnemonic = "start tree vicious crash drum meat turn price exile weasel slam hurt";
-String path = "m/84'/1'/0'";
+String walletName = "default";
+bool walletModified = false;
+String network = "";
+String mnemonic = "";
+String passphrase = "";
+String path = "";
+
 String xpub = "";
 String xpubcore = "";
-String descriptorcore = "";
-String descriptorcorechange = "";
+String descriptorCore = "";
+String descriptorCoreChange = "";
 
 int first = 0;
 int second = 0;
-String address = "tb1q8wl9rq3ykk4yuf2zvh4h394lyvmp0ayp34mnqa"; // m/84'/1'/0'/0/0
+String address = "";
 
 String unsignedpsbt = "";
 String signedpsbt = "";
@@ -139,15 +148,14 @@ void mainPage(bool fullScreen){
         ePaper->drawFastHLine(10, 180, ePaper->width() - 20, GxEPD_BLACK);
 
         // draw motto
-        offset_x = (ePaper->width() - u8g2Fonts.getUTF8Width("PER ASPERA AD ASTRA")) / 2;
+        String motto = "PER ASPERA AD ASTRA";
+        offset_x = (ePaper->width() - u8g2Fonts.getUTF8Width(motto.c_str())) / 2;
         u8g2Fonts.setCursor(offset_x, 200);
-        u8g2Fonts.print("PER ASPERA AD ASTRA");
+        u8g2Fonts.print(motto);
 
         ePaper->update();
     } else {
         // update clock
-        ePaper->fillRect(20, 70, ePaper->width() - 40, 49, GxEPD_WHITE);
-        ePaper->updateWindow(20, 70, ePaper->width() - 40, 49,  false);
         ePaper->fillRect(20, 70, ePaper->width() - 40, 49, GxEPD_WHITE);
         ePaper->fillScreen(GxEPD_WHITE);
         ePaper->setTextColor(GxEPD_BLACK);
@@ -157,38 +165,6 @@ void mainPage(bool fullScreen){
 
         ePaper->updateWindow(20, 70, ePaper->width() - 40, 50,  false);
     }
-}
-
-String processor(const String& var) {
-  if (var == "MAC")          {
-    uint8_t macAddr[6];
-    WiFi.macAddress(macAddr);
-    Serial.printf("Connected, mac address: %02x:%02x:%02x:%02x:%02x:%02x\n", macAddr[0], macAddr[1], macAddr[2], macAddr[3], macAddr[4], macAddr[5]);
-    return String(macAddr[0], HEX)+String(macAddr[1], HEX)+String(macAddr[2], HEX)+String(macAddr[3], HEX)+String(macAddr[4], HEX)+String(macAddr[5], HEX);
-  }
-  if (var == "BATTERY")      return String(twatch->power->getBattPercentage());
-  if (var == "HEAP")         return String(ESP.getFreeHeap());
-  if (var == "CHIPID")       {
-    uint64_t macAddress = ESP.getEfuseMac();
-    uint64_t macAddressTrunc = macAddress << 40;
-    uint32_t chipid = macAddressTrunc >> 40;
-    return String(chipid, HEX);
-  }
-  if (var == "NETWORK")              return network;
-  if (var == "MNEMONIC")             return mnemonic;
-  if (var == "PATH")                 return path;
-  if (var == "XPUB")                 return xpub;
-  if (var == "XPUBCORE")             return xpubcore;
-  if (var == "DESCRIPTORCORE")       return descriptorcore;
-  if (var == "DESCRIPTORCORECHANGE") return descriptorcorechange;
-  if (var == "FIRST")                return String(first);
-  if (var == "SECOND")               return String(second);
-  if (var == "ADDRESS")              return address;
-  if (var == "UNSIGNEDPSBT")         return unsignedpsbt;
-  if (var == "SIGNEDPSBT")           return signedpsbt;
-  if (var == "MESSAGE")              return message;
-  if (var == "SIGNATURE")            return signature;
-  return String();
 }
 
 String getValue(String data, char separator, int index) {
@@ -205,7 +181,109 @@ String getValue(String data, char separator, int index) {
     return found > index ? data.substring(strIndex[0], strIndex[1]) : "";
 }
 
+bool loadWallet(String filename, String password) {
+  File file = SPIFFS.open(filename, "r");
+  if (!file) {
+    Serial.println("Failed to open file for reading");
+    return false;
+  }
+  String fileContent;
+  while (file.available()) {
+    fileContent += char(file.read());
+  }
+  file.close();
+  network = getValue(fileContent, ',', 0);
+  mnemonic =  getValue(fileContent, ',', 1);
+  passphrase = getValue(fileContent, ',', 2);
+  path =  getValue(fileContent, ',', 3);
+  return true;
+}
+
+bool saveWallet(String filename, String password){
+  if (filename == "/default.wal")
+    return false;
+  // create a spiffs file
+  File file = SPIFFS.open(filename, FILE_WRITE);
+  if (!file) {
+      Serial.println("There was an error opening the file for writing");
+      return false;
+  }
+  String s = network+","+mnemonic+","+passphrase+","+path;
+  if (!file.print(s.c_str()))
+      Serial.println("File write failed");
+  file.close();
+  return true;
+}
+
+bool deleteWallet(String filename){
+  if (filename == "/default.wal")
+    return false;
+  return SPIFFS.remove(filename);
+}
+
+String listWallet(bool options){
+  String files;
+  File root = SPIFFS.open("/");
+  File file = root.openNextFile();
+  while(file){
+    if (getValue(file.name(), '.', 1) == "wal"){
+      String fname = getValue(file.name(), '.', 0);
+      fname.remove(0, 1);
+      if (options) {
+        files += "<option value=\"" + fname + "\">" + fname + "</option>";
+      } else {
+        files += fname + " ";
+      }
+    }
+    file = root.openNextFile();
+  }
+  return files;
+}
+
+String processor(const String& var) {
+  if (var == "MAC")          {
+    uint8_t macAddr[6];
+    WiFi.macAddress(macAddr);
+    return String(macAddr[0], HEX)+String(macAddr[1], HEX)+String(macAddr[2], HEX)+String(macAddr[3], HEX)+String(macAddr[4], HEX)+String(macAddr[5], HEX);
+  }
+  if (var == "BATTERY")             return String(twatch->power->getBattPercentage());
+  if (var == "HEAP")                return String(ESP.getFreeHeap());
+  if (var == "CHIPID")              {
+    uint64_t macAddress = ESP.getEfuseMac();
+    uint64_t macAddressTrunc = macAddress << 40;
+    uint32_t chipid = macAddressTrunc >> 40;
+    return String(chipid, HEX);
+  }
+  if (var == "WALLETNAME")           return walletName;
+  if (var == "WALLETMODIFIED")       return (walletModified) ? "Wallet is differrent from saved copy!" : "";
+  if (var == "NETWORK")              return network;
+  if (var == "MNEMONIC")             return mnemonic;
+  if (var == "PATH")                 return path;
+  if (var == "XPUB")                 return xpub;
+  if (var == "XPUBCORE")             return xpubcore;
+  if (var == "DESCRIPTORCORE")       return descriptorCore;
+  if (var == "DESCRIPTORCORECHANGE") return descriptorCoreChange;
+  if (var == "FIRST")                return String(first);
+  if (var == "SECOND")               return String(second);
+  if (var == "ADDRESS")              return address;
+  if (var == "UNSIGNEDPSBT")         return unsignedpsbt;
+  if (var == "SIGNEDPSBT")           return signedpsbt;
+  if (var == "MESSAGE")              return message;
+  if (var == "SIGNATURE")            return signature;
+  if (var == "FILES")                return listWallet(true);
+  if (var == "WALLETS")              return listWallet(false);
+  return String();
+}
+
+
+
 void setup() {
+    // Disable Watchdog
+    disableCore0WDT();
+    disableCore1WDT();
+    disableLoopWDT();
+
+    // Serial for debug only
     Serial.begin(115200);
     delay(100);
 
@@ -214,6 +292,9 @@ void setup() {
      Serial.println("An Error has occurred while mounting SPIFFS");
      return;
     }
+
+    // Load default wallet
+    loadWallet("/default.wal", "");
 
     // Get watch object
     twatch = TTGOClass::getWatch();
@@ -264,98 +345,83 @@ void setup() {
     mainPage(true);
 
     // Reduce CPU frequency
-    setCpuFrequencyMhz(80);
-
-    // Get secrets from spiffs
-    if (!SPIFFS.exists("/secret.txt")){
-      // create a spiffs file
-      File file = SPIFFS.open("/secret.txt", FILE_WRITE);
-      if (!file) {
-          Serial.println("There was an error opening the file for writing");
-          return;
-      }
-      String s = network+","+mnemonic+","+path;
-      if (!file.print(s.c_str()))
-          Serial.println("File write failed");
-      file.close();
-    } else { // read existing file
-      File file = SPIFFS.open("/secret.txt", "r");
-      if (!file) {
-        Serial.println("Failed to open file for reading");
-        return;
-      }
-      String fileContent;
-      while (file.available()) {
-        fileContent += char(file.read());
-      }
-      file.close();
-      network = getValue(fileContent, ',', 0);
-      mnemonic =  getValue(fileContent, ',', 1);
-      path =  getValue(fileContent, ',', 2);
-    }
-
-    String pathcore = path;
-    pathcore.replace("m","");
-    pathcore.replace("'","h");
-
-    // using empty password and derive main xprv
-    HDPrivateKey root(mnemonic, "");
-    // derive account according to BIP-84 for testnet
-    HDPrivateKey account = root.derive(path);
-
-    HDPublicKey xpub_key = account.xpub();
-    xpub = "["+root.fingerprint()+pathcore+"]"+xpub_key.toString();
-
-    HDPrivateKey account_core = root.derive(path);
-    // avoid funny name for xpub
-    account_core.type = UNKNOWN_TYPE;
-    HDPublicKey xpub_key_core = account_core.xpub();
-    xpubcore = xpub_key_core.toString();
-
-    descriptorcore = "wpkh([";
-    descriptorcore += root.fingerprint();
-    descriptorcore += pathcore + "]";
-    descriptorcore += xpubcore;
-    descriptorcore += "/0/*)";
-    descriptorcore += String("#")+descriptorChecksum(descriptorcore);
-
-    descriptorcorechange = "wpkh([";
-    descriptorcorechange += root.fingerprint();
-    descriptorcorechange += pathcore + "]";
-    descriptorcorechange += xpubcore;
-    descriptorcorechange += "/1/*)";
-    descriptorcorechange += String("#")+descriptorChecksum(descriptorcorechange);
-
-
-    // derive first address
-    HDPublicKey pub;
-    pub = xpub_key.child(0).child(0);
-    address = pub.segwitAddress(&Testnet);
+    //setCpuFrequencyMhz(80);
 
     // WIFI
+    ssid = "esp32";
+    password = "12345678";
     WiFi.softAP(ssid.c_str(), password.c_str(), 1, 0, 1); // Max 1 connection
     delay(100);
+
+    // mDNS sfyl.local
+    if (!MDNS.begin("sfyl")) {
+        Serial.println("Error setting up MDNS responder!");
+        return;
+    }
 
     // Webserver
     server.on("/", HTTP_GET, [](AsyncWebServerRequest *request){
       request->send(SPIFFS, "/index.html", "text/html", false, processor);
     });
 
+    server.on("/xpub", HTTP_GET, [](AsyncWebServerRequest *request){
+      // fix pathcore
+      String pathcore = path;
+      pathcore.replace("m","");
+      pathcore.replace("'","h");
+
+      // derive main xprv
+      HDPrivateKey root(mnemonic, passphrase);
+      // derive account
+      HDPrivateKey account = root.derive(path);
+      HDPublicKey xpub_key = account.xpub();
+      xpub = "["+root.fingerprint()+pathcore+"]"+xpub_key.toString();
+
+      HDPrivateKey account_core = root.derive(path);
+      // avoid funny name for xpub
+      account_core.type = UNKNOWN_TYPE;
+      HDPublicKey xpub_key_core = account_core.xpub();
+      xpubcore = xpub_key_core.toString();
+
+      descriptorCore = "wpkh([";
+      descriptorCore += root.fingerprint();
+      descriptorCore += pathcore + "]";
+      descriptorCore += xpubcore;
+      descriptorCore += "/0/*)";
+      descriptorCore += String("#")+descriptorChecksum(descriptorCore);
+
+      descriptorCoreChange = "wpkh([";
+      descriptorCoreChange += root.fingerprint();
+      descriptorCoreChange += pathcore + "]";
+      descriptorCoreChange += xpubcore;
+      descriptorCoreChange += "/1/*)";
+      descriptorCoreChange += String("#")+descriptorChecksum(descriptorCoreChange);
+
+      // derive first address
+      HDPublicKey pub;
+      pub = xpub_key.child(0).child(0);
+      address = pub.segwitAddress(&Testnet);
+
+      request->send(SPIFFS, "/xpub.html", "text/html", false, processor);
+    });
+
     server.on("/address", HTTP_GET, [](AsyncWebServerRequest *request){
       String command_arg = "";
       if(request->hasArg("command"))
         command_arg = request->arg("command");
-        if (command_arg == "getaddress"){
-          first = request->arg("first").toInt();
-          second = request->arg("second").toInt();
-
-          HDPrivateKey root(mnemonic, "");
-          HDPrivateKey account = root.derive(path);
-          account.type = UNKNOWN_TYPE;
-          HDPublicKey xpub = account.xpub();
-          HDPublicKey pub = xpub.child(first).child(second);
-          address = pub.segwitAddress(&Testnet);
-        }
+      if (command_arg == "getaddress"){
+        first = request->arg("first").toInt();
+        second = request->arg("second").toInt();
+      } else {
+        first = 0;
+        second = 0;
+      }
+      HDPrivateKey root(mnemonic, passphrase);
+      HDPrivateKey account = root.derive(path);
+      account.type = UNKNOWN_TYPE;
+      HDPublicKey xpub = account.xpub();
+      HDPublicKey pub = xpub.child(first).child(second);
+      address = pub.segwitAddress(&Testnet);
       request->send(SPIFFS, "/address.html", "text/html", false, processor);
     });
 
@@ -364,45 +430,22 @@ void setup() {
       if(request->hasArg("command"))
         command_arg = request->arg("command");
       if (command_arg == "psbt"){
-        HDPrivateKey root(mnemonic, "");
+        HDPrivateKey root(mnemonic, passphrase);
         HDPrivateKey account = root.derive(path);
         unsignedpsbt = request->arg("unsignedpsbt");
         Serial.println(unsignedpsbt);
         PSBT psbt;
         psbt.parseBase64(unsignedpsbt);
 
-        // going through all outputs
-        for(int i=0; i<psbt.tx.outputsNumber; i++){
-          Serial.print(psbt.tx.txOuts[i].address(&Testnet));
-          Serial.print(" -> ");
-          // You can also use .btcAmount() function that returns a float in whole Bitcoins
-          Serial.print(int(psbt.tx.txOuts[i].amount));
-          Serial.println(" sat");
-        }
-
-        /*// going through all outputs
-        for(int i=0; i<psbt.tx.outputsNumber; i++){
-          Serial.print(psbt.tx.txOuts[i].address(&Testnet));
-          // check if it is a change output
-          if(psbt.txOutsMeta[i].derivationsLen > 0){ // there is derivation path
-            // considering only single key for simplicity
-            HDPublicKey pub = hd.derive(der.derivation, der.derivationLen).xpub();
-            // as pub is HDPublicKey it will also generate correct address type
-            if(pub.address() == psbt.tx.txOuts[i].address()){
-              Serial.print(" (change) ");
-            }
-          }
-          Serial.print(" -> ");
-          // You can also use .btcAmount() function that returns a float in whole Bitcoins
-          Serial.print(int(psbt.tx.txOuts[i].amount));
-          Serial.println(" sat");
-        }*/
+        // TODO decode psbt
+        // TODO shows decoded psbt in the eink
+        // TODO validate 2fa
 
         psbt.sign(root);
         signedpsbt = psbt.toBase64();
 
       } else if (command_arg == "message"){
-        HDPrivateKey root(mnemonic, "");
+        HDPrivateKey root(mnemonic, passphrase);
         HDPrivateKey account = root.derive(path);
         HDPrivateKey priv = account.child(0).child(0);
         address = priv.segwitAddress();
@@ -421,26 +464,38 @@ void setup() {
       String command_arg = "";
       if(request->hasArg("command"))
         command_arg = request->arg("command");
-      if (command_arg == "setmnemonic"){
-        mnemonic = request->arg("mnemonic");
-      } else if (command_arg == "setpath"){
-        path = request->arg("path");
-      } else if (command_arg == "setnetwork"){
+      if (command_arg == "settings"){
+        // todo: implement some checks
         network = request->arg("network");
+        mnemonic = request->arg("mnemonic");
+        passphrase = request->arg("passphrase");
+        path = request->arg("path");
+        walletModified = true;
       }
-      // create a spiffs file
-      File file = SPIFFS.open("/secret.txt", FILE_WRITE);
-      if (!file) {
-          Serial.println("There was an error opening the file for writing");
-          return;
+      else if (command_arg == "load"){
+        String filename = request->arg("filenameLoad");
+        String password = request->arg("passwordLoad");
+        if (loadWallet("/"+filename+".wal", password)) {
+          walletModified = false;
+          walletName = filename;
+        }
       }
-      String s = network+","+mnemonic+","+path;
-      if (!file.print(s.c_str()))
-          Serial.println("File write failed");
-      file.close();
+      else if (command_arg == "save"){
+        String filename = request->arg("filenameSave");
+        String password = request->arg("passwordSave");
+        if (saveWallet("/"+filename+".wal", password)){
+          walletModified = false;
+          walletName = filename;
+        }
+      }
+      else if (command_arg == "delete"){
+        String filename = request->arg("filenameDelete");
+        deleteWallet("/"+filename+".wal");
+      }
       request->send(SPIFFS, "/settings.html", "text/html", false, processor);
     });
 
+    // Static files
     server.on("/bootstrap.bundle.min.js", HTTP_GET, [](AsyncWebServerRequest *request){
       request->send(SPIFFS, "/bootstrap.bundle.min.js", "text/javascript");
     });
@@ -459,6 +514,10 @@ void setup() {
 
     server.on("/bitcoin.pdf", HTTP_GET, [](AsyncWebServerRequest *request){
       request->send(SPIFFS, "/bitcoin.pdf", "application/pdf");
+    });
+
+    server.on("/btc.png", HTTP_GET, [](AsyncWebServerRequest *request){
+      request->send(SPIFFS, "/btc.png", "image/png");
     });
 
     server.on("/favicon.ico", HTTP_GET, [](AsyncWebServerRequest *request){

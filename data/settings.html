@@ -10,30 +10,73 @@
 <body>
     <div class="container">
       <div class="jumbotron mt-3">
-        <img src="btc.png" width="90%">
+        <img src="btc.png" width="400">
         <hr/>
-        <h1>Network</h1>
-        <p>Actually the wallet works only on Testnet.</p>
-        <hr/>
-        <h1>Mnemonic</h1>
         <form action="/settings" method="get">
+          <input type="hidden" name="command" value="settings">
+          <h3>Network</h3>
           <div class="form-group">
-            <label for="exampleInputMnemonic1">Change mnemonic</label>
-            <input type="hidden" name="command" value="setmnemonic">
-            <input type="text" class="form-control" id="exampleInputMnemonic1" name="mnemonic" aria-describedby="mnemoniclHelp" placeholder="Enter a mnemonic" value="%MNEMONIC%">
+            <label for="InputNetwork1">Change network (%NETWORK%)</label>
+            <select name="network" class="form-control">
+              <option value="testnet">Testnet</option>
+            </select>
+          </div>
+          <h3>Mnemonic</h3>
+          <div class="form-group">
+            <label for="InputMnemonic1">Change mnemonic</label>
+            <input type="text" class="form-control" id="InputMnemonic1" name="mnemonic" aria-describedby="mnemoniclHelp" placeholder="Enter a mnemonic" value="%MNEMONIC%">
             <small id="mnemonicHelp" class="form-text text-muted">We'll never share your mnemonic with anyone else.</small>
           </div>
-          <button type="submit" class="btn btn-danger">Set mnemonic</button>
+          <h3>Passphrase</h3>
+          <div class="form-group">
+            <label for="InputPassphrase1">Change passphrase</label>
+            <input type="text" class="form-control" id="InputPassphrase1" name="passphrase" placeholder="Enter a passphrase" value="%PASSPHRASE%">
+          </div>
+          <h3>Derivation path</h3>
+          <div class="form-group">
+            <label for="InputPath1">Change derivation path</label>
+            <input type="text" class="form-control" id="InputPath1" name="path" placeholder="Enter a path" value="%PATH%">
+          </div>
+          <p style="color:red;">%WALLETMODIFIED%</p>
+          <button type="submit" class="btn btn-primary">Set new parameters</button>
         </form>
         <hr/>
-        <h1>Derivation path</h1>
         <form action="/settings" method="get">
+          <input type="hidden" name="command" value="load">
+          <h3>Load a wallet from flash</h3>
           <div class="form-group">
-            <label for="exampleInputPath1">Change derivation path</label>
-            <input type="hidden" name="command" value="setpath">
-            <input type="text" class="form-control" id="exampleInputPath1" name="path" placeholder="Enter a path" value="%PATH%">
+            <label for="InputFile1">Wallet name</label>
+            <select name="filenameLoad" class="form-control">
+              %FILES%
+            </select>
+            <label for="InputPassword1">Password</label>
+            <input type="text" class="form-control" id="InputPassword1" name="passwordLoad" placeholder="Enter a password" value="">
           </div>
-          <button type="submit" class="btn btn-danger">Set path</button>
+          <button type="submit" class="btn btn-success">Load</button>
+        </form>
+        <hr/>
+        <form action="/settings" method="get">
+          <input type="hidden" name="command" value="save">
+          <h3>Save a wallet to flash</h3>
+          <div class="form-group">
+            <label for="InputFile2">Wallet name</label>
+            <input type="text" class="form-control" id="InputFile2" name="filenameSave" placeholder="Enter a filename" value="secret">
+            <label for="InputPassword2">Password</label>
+            <input type="text" class="form-control" id="InputPassword2" name="passwordSave" placeholder="Enter a password" value="">
+          </div>
+          <button type="submit" class="btn btn-warning">Save</button>
+        </form>
+        <hr/>
+        <form action="/settings" method="get">
+          <input type="hidden" name="command" value="delete">
+          <h3>Delete a wallet from flash</h3>
+          <div class="form-group">
+            <label for="InputFile3">Wallet name</label>
+            <select name="filenameDelete" class="form-control">
+              %FILES%
+            </select>
+          </div>
+          <button type="submit" class="btn btn-danger">Delete</button>
         </form>
       </div>
     </div>
@@ -47,6 +90,9 @@
         <ul class="navbar-nav mr-auto">
           <li class="nav-item">
             <a class="nav-link" href="/">Home</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" href="/xpub">Get XPub</a>
           </li>
           <li class="nav-item">
             <a class="nav-link" href="/address">Get Address</a>

@@ -10,11 +10,11 @@
 <body>
     <div class="container">
       <div class="jumbotron mt-3">
-        <img src="btc.png" width="90%">
+        <img src="btc.png" width="400">
         <hr/>
         <h3>Sign PSBT</h3>
         <ul>
-          <li>Create a new PSBT <code>bitcoin-cli -testnet -rpcwallet="watchman" walletcreatefundedpsbt '[]' '[{"%ADDRESS%":0.001}]' 0 '{"includeWatching":true}' true</code></li>
+          <li>Create a new PSBT <code>bitcoin-cli -testnet -rpcwallet="watchman" walletcreatefundedpsbt '[]' '[{"ADDRESS":AMOUNT}]' 0 '{"includeWatching":true}' true</code>. Change ADDRESS with destination address and AMOUT with the amount you want send in Bitcoin!</li>
           <li>Use SFYL Wallet and sign your PSBT.</li>
         </ul>
         <form action="/sign" method="get">
@@ -60,6 +60,9 @@
         <ul class="navbar-nav mr-auto">
           <li class="nav-item">
             <a class="nav-link" href="/">Home</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" href="/xpub">Get XPub</a>
           </li>
           <li class="nav-item">
             <a class="nav-link" href="/address">Get Address</a>
