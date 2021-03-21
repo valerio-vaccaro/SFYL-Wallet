@@ -97,37 +97,33 @@ void mainPage(bool fullScreen){
         ePaper->drawBitmap(5, 5, logoIcon, 134, 28, GxEPD_BLACK);
 
         // Print battery icon
-        /*battLoad=0;
-        if (twatch->power->isVBUSPlug())               // check if battery is charging
-          battLoad=1;*/
-        battPerc=twatch->power->getBattPercentage();   // get the status of the battery
-        battPercView=((battPerc+10)/20);               // there are 10 different states to display the percentage of battery charge
-
+        battPerc=twatch->power->getBattPercentage();
+        battPercView=((battPerc+10)/20);
         u8g2Fonts.setFont(u8g2_font_battery19_tn);
-        u8g2Fonts.setCursor(175, 25);                // start writing at this position
-        u8g2Fonts.setFontDirection(3);               // left to right (this is default)
+        u8g2Fonts.setCursor(175, 25);
+        u8g2Fonts.setFontDirection(3);
         u8g2Fonts.print(battPercView);
-        u8g2Fonts.setFontDirection(0);               // left to right (this is default)
+        u8g2Fonts.setFontDirection(0);
 
-        // draw line
+        // Draw line
         ePaper->drawFastHLine(10, 40, ePaper->width() - 20, GxEPD_BLACK);
 
-        // draw title
+        // Draw title
         u8g2Fonts.setFont(u8g2_font_helvB18_tf);
         int offset_x = (ePaper->width() - u8g2Fonts.getUTF8Width("SFYL Wallet")) / 2;
         u8g2Fonts.setCursor(offset_x, 70);
         u8g2Fonts.print("SFYL Wallet");
 
-        // draw clock
+        // Draw clock
         u8g2Fonts.setFont(u8g2_font_7Segments_26x42_mn);
         u8g2Fonts.setCursor(25, 120);
         u8g2Fonts.print(buff);
 
-        // draw line
+        // Draw line
         ePaper->drawFastHLine(10, 130, ePaper->width() - 20, GxEPD_BLACK);
 
         if (showAp){
-          // draw strings
+          // Draw strings
           ePaper->fillRect(20, 140, ePaper->width() - 40, 169, GxEPD_WHITE);
           u8g2Fonts.setFont(u8g2_font_helvB10_tf); // select u8g2 font from here: https://github.com/olikraus/u8g2/wiki/fntlistall
           u8g2Fonts.setCursor(20, 150);
@@ -135,7 +131,7 @@ void mainPage(bool fullScreen){
           u8g2Fonts.setCursor(20, 170);
           u8g2Fonts.print("Password: "+password);
         } else {
-          // draw strings
+          // Draw hidden strings
           ePaper->fillRect(20, 140, ePaper->width() - 40, 169, GxEPD_WHITE);
           u8g2Fonts.setFont(u8g2_font_helvB10_tf); // select u8g2 font from here: https://github.com/olikraus/u8g2/wiki/fntlistall
           u8g2Fonts.setCursor(20, 150);
@@ -144,10 +140,10 @@ void mainPage(bool fullScreen){
           u8g2Fonts.print("Password: ********");
         }
 
-        // draw line
+        // Draw line
         ePaper->drawFastHLine(10, 180, ePaper->width() - 20, GxEPD_BLACK);
 
-        // draw motto
+        // Draw motto
         String motto = "PER ASPERA AD ASTRA";
         offset_x = (ePaper->width() - u8g2Fonts.getUTF8Width(motto.c_str())) / 2;
         u8g2Fonts.setCursor(offset_x, 200);
@@ -155,7 +151,7 @@ void mainPage(bool fullScreen){
 
         ePaper->update();
     } else {
-        // update clock
+        // Update clock
         ePaper->fillRect(20, 70, ePaper->width() - 40, 49, GxEPD_WHITE);
         ePaper->fillScreen(GxEPD_WHITE);
         ePaper->setTextColor(GxEPD_BLACK);
@@ -208,7 +204,7 @@ bool saveWallet(String filename, String password){
       Serial.println("There was an error opening the file for writing");
       return false;
   }
-  String s = network+","+mnemonic+","+passphrase+","+path;
+  String s = network+","+mnemonic+","+passphrase+","+path+",";
   if (!file.print(s.c_str()))
       Serial.println("File write failed");
   file.close();
@@ -274,8 +270,6 @@ String processor(const String& var) {
   if (var == "WALLETS")              return listWallet(false);
   return String();
 }
-
-
 
 void setup() {
     // Disable Watchdog
@@ -344,12 +338,7 @@ void setup() {
     // Initialize the interface
     mainPage(true);
 
-    // Reduce CPU frequency
-    //setCpuFrequencyMhz(80);
-
     // WIFI
-    ssid = "esp32";
-    password = "12345678";
     WiFi.softAP(ssid.c_str(), password.c_str(), 1, 0, 1); // Max 1 connection
     delay(100);
 
@@ -365,20 +354,19 @@ void setup() {
     });
 
     server.on("/xpub", HTTP_GET, [](AsyncWebServerRequest *request){
-      // fix pathcore
+      // Fix pathcore
       String pathcore = path;
       pathcore.replace("m","");
       pathcore.replace("'","h");
 
-      // derive main xprv
+      // Derive main xprv
       HDPrivateKey root(mnemonic, passphrase);
-      // derive account
+      // Derive account
       HDPrivateKey account = root.derive(path);
       HDPublicKey xpub_key = account.xpub();
       xpub = "["+root.fingerprint()+pathcore+"]"+xpub_key.toString();
-
       HDPrivateKey account_core = root.derive(path);
-      // avoid funny name for xpub
+      // Avoid funny name for xpub
       account_core.type = UNKNOWN_TYPE;
       HDPublicKey xpub_key_core = account_core.xpub();
       xpubcore = xpub_key_core.toString();
@@ -397,7 +385,7 @@ void setup() {
       descriptorCoreChange += "/1/*)";
       descriptorCoreChange += String("#")+descriptorChecksum(descriptorCoreChange);
 
-      // derive first address
+      // Derive first address
       HDPublicKey pub;
       pub = xpub_key.child(0).child(0);
       address = pub.segwitAddress(&Testnet);
@@ -422,6 +410,9 @@ void setup() {
       HDPublicKey xpub = account.xpub();
       HDPublicKey pub = xpub.child(first).child(second);
       address = pub.segwitAddress(&Testnet);
+
+      // TODO shows something on eink
+
       request->send(SPIFFS, "/address.html", "text/html", false, processor);
     });
 
@@ -450,6 +441,8 @@ void setup() {
         HDPrivateKey priv = account.child(0).child(0);
         address = priv.segwitAddress();
 
+        // TODO shows something on eink
+
         message = request->arg("message");
         uint8_t hash[32];
         sha256(message.c_str(), strlen(message.c_str()), hash);
@@ -465,7 +458,7 @@ void setup() {
       if(request->hasArg("command"))
         command_arg = request->arg("command");
       if (command_arg == "settings"){
-        // todo: implement some checks
+        // TODO implement some checks
         network = request->arg("network");
         mnemonic = request->arg("mnemonic");
         passphrase = request->arg("passphrase");
@@ -473,6 +466,7 @@ void setup() {
         walletModified = true;
       }
       else if (command_arg == "load"){
+        // TODO implement some checks
         String filename = request->arg("filenameLoad");
         String password = request->arg("passwordLoad");
         if (loadWallet("/"+filename+".wal", password)) {
@@ -555,7 +549,7 @@ void loop()
     }
 }
 
-// http://javl.github.io/image2cpp/ with inverted colors
+// Created using http://javl.github.io/image2cpp/ with inverted colors
 const unsigned char logoIcon[134*28] = {
 0x00, 0x1f, 0x80, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 0x00, 0x00, 0xff, 0xf0, 0x00, 0x1f, 0x00, 0x03, 0xe0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xf8,
