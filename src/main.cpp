@@ -20,9 +20,6 @@ Upload spifs content with the command: pio run --target uploadfs
 #include <esp_task_wdt.h>
 #include <ESPmDNS.h>
 
-// Disable Tcp Watchdog
-#define CONFIG_ASYNC_TCP_USE_WDT 0
-
 AsyncWebServer server(80);
 
 String walletName = "default";
@@ -192,6 +189,7 @@ bool loadWallet(String filename, String password) {
   mnemonic =  getValue(fileContent, ',', 1);
   passphrase = getValue(fileContent, ',', 2);
   path =  getValue(fileContent, ',', 3);
+  delay(10);
   return true;
 }
 
@@ -208,13 +206,16 @@ bool saveWallet(String filename, String password){
   if (!file.print(s.c_str()))
       Serial.println("File write failed");
   file.close();
+  delay(10);
   return true;
 }
 
 bool deleteWallet(String filename){
   if (filename == "/default.wal")
     return false;
-  return SPIFFS.remove(filename);
+  bool status = SPIFFS.remove(filename);
+  delay(10);
+  return status;
 }
 
 String listWallet(bool options){
@@ -224,7 +225,7 @@ String listWallet(bool options){
   while(file){
     if (getValue(file.name(), '.', 1) == "wal"){
       String fname = getValue(file.name(), '.', 0);
-      fname.remove(0, 1);
+      //fname.remove(0, 1);
       if (options) {
         files += "<option value=\"" + fname + "\">" + fname + "</option>";
       } else {
@@ -233,6 +234,7 @@ String listWallet(bool options){
     }
     file = root.openNextFile();
   }
+  delay(10);
   return files;
 }
 
@@ -268,6 +270,7 @@ String processor(const String& var) {
   if (var == "SIGNATURE")            return signature;
   if (var == "FILES")                return listWallet(true);
   if (var == "WALLETS")              return listWallet(false);
+  delay(10);
   return String();
 }
 
@@ -384,11 +387,13 @@ void setup() {
       descriptorCoreChange += xpubcore;
       descriptorCoreChange += "/1/*)";
       descriptorCoreChange += String("#")+descriptorChecksum(descriptorCoreChange);
+      delay(10);
 
-      // Derive first address
+      // Derive address
       HDPublicKey pub;
       pub = xpub_key.child(0).child(0);
       address = pub.segwitAddress(&Testnet);
+      delay(10);
 
       request->send(SPIFFS, "/xpub.html", "text/html", false, processor);
     });
@@ -410,7 +415,7 @@ void setup() {
       HDPublicKey xpub = account.xpub();
       HDPublicKey pub = xpub.child(first).child(second);
       address = pub.segwitAddress(&Testnet);
-
+      delay(10);
       // TODO shows something on eink
 
       request->send(SPIFFS, "/address.html", "text/html", false, processor);
@@ -427,29 +432,30 @@ void setup() {
         Serial.println(unsignedpsbt);
         PSBT psbt;
         psbt.parseBase64(unsignedpsbt);
-
+        delay(10);
         // TODO decode psbt
         // TODO shows decoded psbt in the eink
         // TODO validate 2fa
-
+        delay(10);
         psbt.sign(root);
         signedpsbt = psbt.toBase64();
+        delay(10);
 
       } else if (command_arg == "message"){
         HDPrivateKey root(mnemonic, passphrase);
         HDPrivateKey account = root.derive(path);
         HDPrivateKey priv = account.child(0).child(0);
         address = priv.segwitAddress();
-
+        delay(10);
         // TODO shows something on eink
-
+        delay(10);
         message = request->arg("message");
         uint8_t hash[32];
         sha256(message.c_str(), strlen(message.c_str()), hash);
         Signature sig = priv.sign(hash);
         signature = String(sig);
       }
-
+      delay(10);
       request->send(SPIFFS, "/sign.html", "text/html", false, processor);
     });
 
@@ -486,6 +492,7 @@ void setup() {
         String filename = request->arg("filenameDelete");
         deleteWallet("/"+filename+".wal");
       }
+      delay(10);
       request->send(SPIFFS, "/settings.html", "text/html", false, processor);
     });
 
