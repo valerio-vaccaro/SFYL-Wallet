@@ -4,10 +4,11 @@
                   \__ \/ /_     \  / /
                  ___/ / __/     / / /___
                 /____/_/       /_/_____/ Wallet
-                  Valerio Vaccaro - 2021
+                  Valerio Vaccaro - 2021/2022
 
 Upload spifs content with the command: pio run --target uploadfs
 */
+
 #include <Arduino.h>
 #include <FS.h> //this needs to be first, or it all crashes and burns...
 #include "config.h"
@@ -104,7 +105,7 @@ void mainPage(bool fullScreen){
 
         // Draw line
         ePaper->drawFastHLine(10, 40, ePaper->width() - 20, GxEPD_BLACK);
-
+  
         // Draw title
         u8g2Fonts.setFont(u8g2_font_helvB18_tf);
         int offset_x = (ePaper->width() - u8g2Fonts.getUTF8Width("SFYL Wallet")) / 2;
@@ -119,23 +120,19 @@ void mainPage(bool fullScreen){
         // Draw line
         ePaper->drawFastHLine(10, 130, ePaper->width() - 20, GxEPD_BLACK);
 
+        String str_ssid = "********";
+        String str_password = "********";
         if (showAp){
           // Draw strings
-          ePaper->fillRect(20, 140, ePaper->width() - 40, 169, GxEPD_WHITE);
-          u8g2Fonts.setFont(u8g2_font_helvB10_tf); // select u8g2 font from here: https://github.com/olikraus/u8g2/wiki/fntlistall
-          u8g2Fonts.setCursor(20, 150);
-          u8g2Fonts.print("SSID: "+ssid);
-          u8g2Fonts.setCursor(20, 170);
-          u8g2Fonts.print("Password: "+password);
-        } else {
-          // Draw hidden strings
-          ePaper->fillRect(20, 140, ePaper->width() - 40, 169, GxEPD_WHITE);
-          u8g2Fonts.setFont(u8g2_font_helvB10_tf); // select u8g2 font from here: https://github.com/olikraus/u8g2/wiki/fntlistall
-          u8g2Fonts.setCursor(20, 150);
-          u8g2Fonts.print("SSID: ********");
-          u8g2Fonts.setCursor(20, 170);
-          u8g2Fonts.print("Password: ********");
+          str_ssid = String(ssid);
+          str_password = String(password);
         }
+        ePaper->fillRect(20, 140, ePaper->width() - 40, 169, GxEPD_WHITE);
+        u8g2Fonts.setFont(u8g2_font_helvB10_tf); // select u8g2 font from here: https://github.com/olikraus/u8g2/wiki/fntlistall
+        u8g2Fonts.setCursor(20, 150);
+        u8g2Fonts.print("SSID: "+str_ssid);
+        u8g2Fonts.setCursor(20, 170);
+        u8g2Fonts.print("Password: "+str_password);
 
         // Draw line
         ePaper->drawFastHLine(10, 180, ePaper->width() - 20, GxEPD_BLACK);
