@@ -547,7 +547,9 @@ void loop()
         // Get interrupt status
         power->readIRQ();
         if (power->isPEKShortPressIRQ()) {
-            twatch->bl->isOn() ? twatch->bl->off() : twatch->bl->adjust(DEFAULT_BRIGHTNESS);
+            uint8_t level = twatch->bl->getLevel();
+            level = (level + 10) % 100;
+            twatch->bl->adjust(level);
         }
         if (power->isPEKLongtPressIRQ()) {
             showAp =  !showAp;
