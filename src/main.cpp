@@ -74,7 +74,6 @@ void mainPage(bool fullScreen){
     static uint8_t lastDay = 0;
     char buff[64] = "00:00";
     int battPerc, battPercView;
-    //int battLoad;
 
     RTC_Date d = rtc->getDateTime();
     if (mm == d.minute && !fullScreen) {
@@ -96,7 +95,19 @@ void mainPage(bool fullScreen){
 
         // Print battery icon
         battPerc=twatch->power->getBattPercentage();
-        battPercView=((battPerc+10)/20);
+        if (battPerc > 90) {
+          battPercView = 5;
+        } else if (battPerc > 80) {
+          battPercView = 4;
+        } else if (battPerc > 60) {
+          battPercView = 3;
+        } else if (battPerc > 40) {
+          battPercView = 2;
+        } else if (battPerc > 20) {
+          battPercView = 1;
+        } else {
+           battPercView = 0;
+        };
         u8g2Fonts.setFont(u8g2_font_battery19_tn);
         u8g2Fonts.setCursor(175, 25);
         u8g2Fonts.setFontDirection(3);
