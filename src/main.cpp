@@ -50,7 +50,7 @@ String password = "";
 boolean showAp = false;
 
 extern const unsigned char logoIcon[134*28];
-#define DEFAULT_BRIGHTNESS                          45
+#define DEFAULT_BRIGHTNESS                          5
 U8G2_FOR_ADAFRUIT_GFX u8g2Fonts;
 TTGOClass *twatch = nullptr;
 GxEPD_Class *ePaper = nullptr;
@@ -61,125 +61,148 @@ uint32_t seupCount = 0;
 bool pwIRQ = false;
 
 void setupDisplay(){
-    u8g2Fonts.begin(*ePaper);                   // connect u8g2 procedures to Adafruit GFX
-    u8g2Fonts.setFontMode(1);                   // use u8g2 transparent mode (this is default)
-    u8g2Fonts.setFontDirection(0);              // left to right (this is default)
-    u8g2Fonts.setForegroundColor(GxEPD_BLACK);  // apply Adafruit GFX color
-    u8g2Fonts.setBackgroundColor(GxEPD_WHITE);  // apply Adafruit GFX color
-    u8g2Fonts.setFont(u8g2_font_inr38_mn);      // select u8g2 font from here: https://github.com/olikraus/u8g2/wiki/fntlistall
+  u8g2Fonts.begin(*ePaper);                   // connect u8g2 procedures to Adafruit GFX
+  u8g2Fonts.setFontMode(1);                   // use u8g2 transparent mode (this is default)
+  u8g2Fonts.setFontDirection(0);              // left to right (this is default)
+  u8g2Fonts.setForegroundColor(GxEPD_BLACK);  // apply Adafruit GFX color
+  u8g2Fonts.setBackgroundColor(GxEPD_WHITE);  // apply Adafruit GFX color
+  u8g2Fonts.setFont(u8g2_font_inr38_mn);      // select u8g2 font from here: https://github.com/olikraus/u8g2/wiki/fntlistall
+}
+
+void printBattery(){
+  int battPerc, battPercView;
+
+  // Print battery icon
+  battPerc=twatch->power->getBattPercentage();
+  if (battPerc > 90) {
+    battPercView = 5;
+  } else if (battPerc > 80) {
+    battPercView = 4;
+  } else if (battPerc > 60) {
+    battPercView = 3;
+  } else if (battPerc > 40) {
+    battPercView = 2;
+  } else if (battPerc > 20) {
+    battPercView = 1;
+  } else {
+      battPercView = 0;
+  };
+  u8g2Fonts.setFont(u8g2_font_battery19_tn);
+  u8g2Fonts.setCursor(175, 25);
+  u8g2Fonts.setFontDirection(3);
+  u8g2Fonts.print(battPercView);
+  u8g2Fonts.setFontDirection(0);
+}
+
+void printHeader(){
+  // Print logo
+  ePaper->drawBitmap(5, 5, logoIcon, 134, 28, GxEPD_BLACK);
+
+  printBattery();
+
+  // Draw line
+  ePaper->drawFastHLine(10, 40, ePaper->width() - 20, GxEPD_BLACK);
+}
+
+void printWIFI(){
+  String str_ssid = "********";
+  String str_password = "********";
+  if (showAp){
+    // Draw strings
+    str_ssid = String(ssid);
+    str_password = String(password);
+  }
+  ePaper->fillRect(20, 140, ePaper->width() - 40, 169, GxEPD_WHITE);
+  u8g2Fonts.setFont(u8g2_font_helvB10_tf); // select u8g2 font from here: https://github.com/olikraus/u8g2/wiki/fntlistall
+  u8g2Fonts.setCursor(20, 150);
+  u8g2Fonts.print("SSID: "+str_ssid);
+  u8g2Fonts.setCursor(20, 170);
+  u8g2Fonts.print("Password: "+str_password);
+
+  // Draw line
+  ePaper->drawFastHLine(10, 180, ePaper->width() - 20, GxEPD_BLACK);
+}
+
+void printMotto(){
+  // Draw motto
+  String motto = "PER ASPERA AD ASTRA";
+  int offset_x = (ePaper->width() - u8g2Fonts.getUTF8Width(motto.c_str())) / 2;
+  u8g2Fonts.setCursor(offset_x, 200);
+  u8g2Fonts.print(motto);
+}
+
+void printClock(bool fullScreen){
+  static uint8_t hh = 0, mm = 0;
+  static uint8_t lastDay = 0;
+  char buff[64] = "00:00";
+  
+  RTC_Date d = rtc->getDateTime();
+  if (mm == d.minute && !fullScreen) {
+    return ; // nothing changed
+  }
+
+  mm = d.minute;
+  hh = d.hour;
+  snprintf(buff, sizeof(buff), "%02d:%02d", hh, mm);
+
+  if (lastDay != d.day) {
+    lastDay = d.day;
+    fullScreen = true;  // repaint all
+  }
+
+  if (fullScreen) {
+    // Draw title
+    u8g2Fonts.setFont(u8g2_font_helvB18_tf);
+    int offset_x = (ePaper->width() - u8g2Fonts.getUTF8Width("SFYL Wallet")) / 2;
+    u8g2Fonts.setCursor(offset_x, 70);
+    u8g2Fonts.print("SFYL Wallet");
+
+    // Draw clock
+    u8g2Fonts.setFont(u8g2_font_7Segments_26x42_mn);
+    u8g2Fonts.setCursor(25, 120);
+    u8g2Fonts.print(buff);
+
+    // Draw line
+    ePaper->drawFastHLine(10, 130, ePaper->width() - 20, GxEPD_BLACK);
+  } else {
+    // Update clock
+    ePaper->fillRect(20, 70, ePaper->width() - 40, 49, GxEPD_WHITE);
+    ePaper->fillScreen(GxEPD_WHITE);
+    ePaper->setTextColor(GxEPD_BLACK);
+    u8g2Fonts.setFont(u8g2_font_7Segments_26x42_mn);
+    u8g2Fonts.setCursor(25, 120);
+    u8g2Fonts.print(buff);
+
+    ePaper->updateWindow(20, 70, ePaper->width() - 40, 50,  false);
+  }
 }
 
 void mainPage(bool fullScreen){
-    static uint8_t hh = 0, mm = 0;
-    static uint8_t lastDay = 0;
-    char buff[64] = "00:00";
-    int battPerc, battPercView;
 
-    RTC_Date d = rtc->getDateTime();
-    if (mm == d.minute && !fullScreen) {
-        return ; // nothing changed
-    }
-
-    mm = d.minute;
-    hh = d.hour;
-    if (lastDay != d.day) {
-        lastDay = d.day;
-        fullScreen = true;  // repaint all
-    }
-
-    snprintf(buff, sizeof(buff), "%02d:%02d", hh, mm);
-
-    if (fullScreen) {
-        // Print logo
-        ePaper->drawBitmap(5, 5, logoIcon, 134, 28, GxEPD_BLACK);
-
-        // Print battery icon
-        battPerc=twatch->power->getBattPercentage();
-        if (battPerc > 90) {
-          battPercView = 5;
-        } else if (battPerc > 80) {
-          battPercView = 4;
-        } else if (battPerc > 60) {
-          battPercView = 3;
-        } else if (battPerc > 40) {
-          battPercView = 2;
-        } else if (battPerc > 20) {
-          battPercView = 1;
-        } else {
-           battPercView = 0;
-        };
-        u8g2Fonts.setFont(u8g2_font_battery19_tn);
-        u8g2Fonts.setCursor(175, 25);
-        u8g2Fonts.setFontDirection(3);
-        u8g2Fonts.print(battPercView);
-        u8g2Fonts.setFontDirection(0);
-
-        // Draw line
-        ePaper->drawFastHLine(10, 40, ePaper->width() - 20, GxEPD_BLACK);
-  
-        // Draw title
-        u8g2Fonts.setFont(u8g2_font_helvB18_tf);
-        int offset_x = (ePaper->width() - u8g2Fonts.getUTF8Width("SFYL Wallet")) / 2;
-        u8g2Fonts.setCursor(offset_x, 70);
-        u8g2Fonts.print("SFYL Wallet");
-
-        // Draw clock
-        u8g2Fonts.setFont(u8g2_font_7Segments_26x42_mn);
-        u8g2Fonts.setCursor(25, 120);
-        u8g2Fonts.print(buff);
-
-        // Draw line
-        ePaper->drawFastHLine(10, 130, ePaper->width() - 20, GxEPD_BLACK);
-
-        String str_ssid = "********";
-        String str_password = "********";
-        if (showAp){
-          // Draw strings
-          str_ssid = String(ssid);
-          str_password = String(password);
-        }
-        ePaper->fillRect(20, 140, ePaper->width() - 40, 169, GxEPD_WHITE);
-        u8g2Fonts.setFont(u8g2_font_helvB10_tf); // select u8g2 font from here: https://github.com/olikraus/u8g2/wiki/fntlistall
-        u8g2Fonts.setCursor(20, 150);
-        u8g2Fonts.print("SSID: "+str_ssid);
-        u8g2Fonts.setCursor(20, 170);
-        u8g2Fonts.print("Password: "+str_password);
-
-        // Draw line
-        ePaper->drawFastHLine(10, 180, ePaper->width() - 20, GxEPD_BLACK);
-
-        // Draw motto
-        String motto = "PER ASPERA AD ASTRA";
-        offset_x = (ePaper->width() - u8g2Fonts.getUTF8Width(motto.c_str())) / 2;
-        u8g2Fonts.setCursor(offset_x, 200);
-        u8g2Fonts.print(motto);
-
-        ePaper->update();
-    } else {
-        // Update clock
-        ePaper->fillRect(20, 70, ePaper->width() - 40, 49, GxEPD_WHITE);
-        ePaper->fillScreen(GxEPD_WHITE);
-        ePaper->setTextColor(GxEPD_BLACK);
-        u8g2Fonts.setFont(u8g2_font_7Segments_26x42_mn);
-        u8g2Fonts.setCursor(25, 120);
-        u8g2Fonts.print(buff);
-
-        ePaper->updateWindow(20, 70, ePaper->width() - 40, 50,  false);
-    }
+  if (fullScreen) {
+    printHeader();
+    printClock(fullScreen);
+    printWIFI();
+    printMotto();
+    
+    ePaper->update();
+  } else {
+    printClock(fullScreen);
+  }
 }
 
 String getValue(String data, char separator, int index) {
-    int found = 0;
-    int strIndex[] = { 0, -1 };
-    int maxIndex = data.length() - 1;
-    for (int i = 0; i <= maxIndex && found <= index; i++) {
-        if (data.charAt(i) == separator || i == maxIndex) {
-            found++;
-            strIndex[0] = strIndex[1] + 1;
-            strIndex[1] = (i == maxIndex) ? i+1 : i;
-        }
-    }
-    return found > index ? data.substring(strIndex[0], strIndex[1]) : "";
+  int found = 0;
+  int strIndex[] = { 0, -1 };
+  int maxIndex = data.length() - 1;
+  for (int i = 0; i <= maxIndex && found <= index; i++) {
+      if (data.charAt(i) == separator || i == maxIndex) {
+          found++;
+          strIndex[0] = strIndex[1] + 1;
+          strIndex[1] = (i == maxIndex) ? i+1 : i;
+      }
+  }
+  return found > index ? data.substring(strIndex[0], strIndex[1]) : "";
 }
 
 bool loadWallet(String filename, String password) {
@@ -283,287 +306,286 @@ String processor(const String& var) {
 }
 
 void setup() {
-    // Disable Watchdog
-    disableCore0WDT();
-    disableCore1WDT();
-    disableLoopWDT();
+  // Disable Watchdog
+  disableCore0WDT();
+  disableCore1WDT();
+  disableLoopWDT();
 
-    // Serial for debug only
-    Serial.begin(115200);
-    delay(100);
+  // Serial for debug only
+  Serial.begin(115200);
+  delay(100);
 
-    // Load spiffs
-    if(!SPIFFS.begin()){
-     Serial.println("An Error has occurred while mounting SPIFFS");
-     return;
+  // Load spiffs
+  if(!SPIFFS.begin()){
+    Serial.println("An Error has occurred while mounting SPIFFS");
+    return;
+  }
+
+  // Load default wallet
+  loadWallet("/default.wal", "");
+
+  // Get watch object
+  twatch = TTGOClass::getWatch();
+  twatch->begin();
+
+  // Turn on the backlight
+  twatch->openBL();
+  rtc = twatch->rtc;
+  power = twatch->power;
+  btn = twatch->button;
+  ePaper = twatch->ePaper;
+
+  // Use compile time as RTC input time
+  rtc->check();
+
+  // Turn on power management button interrupt
+  power->enableIRQ(AXP202_PEK_SHORTPRESS_IRQ, true);
+
+  // Clear power interruption
+  power->clearIRQ();
+
+  // Set MPU6050 to sleep
+  twatch->mpu->setSleepEnabled(true);
+
+  // Set Pin to interrupt
+  pinMode(AXP202_INT, INPUT_PULLUP);
+  attachInterrupt(AXP202_INT, [] {
+      pwIRQ = true;
+  }, FALLING);
+
+  btn->setPressedHandler([]() {
+      delay(2000);
+      esp_sleep_enable_ext1_wakeup(GPIO_SEL_36, ESP_EXT1_WAKEUP_ALL_LOW);
+      esp_deep_sleep_start();
+  });
+
+  // Adjust the backlight to reduce current consumption
+  twatch->setBrightness(DEFAULT_BRIGHTNESS);
+
+  // Initialize the ink screen
+  setupDisplay();
+
+  // AP ssid and password
+  ssid = "SFYL_"+String(esp_random(), HEX);
+  password = String(esp_random(), HEX);
+
+  // Initialize the interface
+  mainPage(true);
+
+  // WIFI
+  WiFi.softAP(ssid.c_str(), password.c_str(), 1, 0, 1); // Max 1 connection
+  delay(100);
+
+  // mDNS sfyl.local
+  if (!MDNS.begin("sfyl")) {
+      Serial.println("Error setting up MDNS responder!");
+      return;
+  }
+
+  // Webserver
+  server.on("/", HTTP_GET, [](AsyncWebServerRequest *request){
+    request->send(SPIFFS, "/index.html", "text/html", false, processor);
+  });
+
+  server.on("/xpub", HTTP_GET, [](AsyncWebServerRequest *request){
+    // Fix pathcore
+    String pathcore = path;
+    pathcore.replace("m","");
+    pathcore.replace("'","h");
+
+    // Derive main xprv
+    HDPrivateKey root(mnemonic, passphrase);
+    // Derive account
+    HDPrivateKey account = root.derive(path);
+    HDPublicKey xpub_key = account.xpub();
+    xpub = "["+root.fingerprint()+pathcore+"]"+xpub_key.toString();
+    HDPrivateKey account_core = root.derive(path);
+    // Avoid funny name for xpub
+    account_core.type = UNKNOWN_TYPE;
+    HDPublicKey xpub_key_core = account_core.xpub();
+    xpubcore = xpub_key_core.toString();
+
+    descriptorCore = "wpkh([";
+    descriptorCore += root.fingerprint();
+    descriptorCore += pathcore + "]";
+    descriptorCore += xpubcore;
+    descriptorCore += "/0/*)";
+    descriptorCore += String("#")+descriptorChecksum(descriptorCore);
+
+    descriptorCoreChange = "wpkh([";
+    descriptorCoreChange += root.fingerprint();
+    descriptorCoreChange += pathcore + "]";
+    descriptorCoreChange += xpubcore;
+    descriptorCoreChange += "/1/*)";
+    descriptorCoreChange += String("#")+descriptorChecksum(descriptorCoreChange);
+    delay(10);
+
+    // Derive address
+    HDPublicKey pub;
+    pub = xpub_key.child(0).child(0);
+    address = pub.segwitAddress(&Testnet);
+    delay(10);
+
+    request->send(SPIFFS, "/xpub.html", "text/html", false, processor);
+  });
+
+  server.on("/address", HTTP_GET, [](AsyncWebServerRequest *request){
+    String command_arg = "";
+    if(request->hasArg("command"))
+      command_arg = request->arg("command");
+    if (command_arg == "getaddress"){
+      first = request->arg("first").toInt();
+      second = request->arg("second").toInt();
+    } else {
+      first = 0;
+      second = 0;
     }
+    HDPrivateKey root(mnemonic, passphrase);
+    HDPrivateKey account = root.derive(path);
+    account.type = UNKNOWN_TYPE;
+    HDPublicKey xpub = account.xpub();
+    HDPublicKey pub = xpub.child(first).child(second);
+    address = pub.segwitAddress(&Testnet);
+    delay(10);
+    // TODO shows something on eink
 
-    // Load default wallet
-    loadWallet("/default.wal", "");
+    request->send(SPIFFS, "/address.html", "text/html", false, processor);
+  });
 
-    // Get watch object
-    twatch = TTGOClass::getWatch();
-    twatch->begin();
-
-    // Turn on the backlight
-    twatch->openBL();
-    rtc = twatch->rtc;
-    power = twatch->power;
-    btn = twatch->button;
-    ePaper = twatch->ePaper;
-
-    // Use compile time as RTC input time
-    rtc->check();
-
-    // Turn on power management button interrupt
-    power->enableIRQ(AXP202_PEK_SHORTPRESS_IRQ, true);
-
-    // Clear power interruption
-    power->clearIRQ();
-
-    // Set MPU6050 to sleep
-    twatch->mpu->setSleepEnabled(true);
-
-    // Set Pin to interrupt
-    pinMode(AXP202_INT, INPUT_PULLUP);
-    attachInterrupt(AXP202_INT, [] {
-        pwIRQ = true;
-    }, FALLING);
-
-    btn->setPressedHandler([]() {
-        delay(2000);
-        esp_sleep_enable_ext1_wakeup(GPIO_SEL_36, ESP_EXT1_WAKEUP_ALL_LOW);
-        esp_deep_sleep_start();
-    });
-
-    // Adjust the backlight to reduce current consumption
-    twatch->setBrightness(DEFAULT_BRIGHTNESS);
-
-    // Initialize the ink screen
-    setupDisplay();
-
-    // AP ssid and password
-    ssid = "SFYL_"+String(esp_random(), HEX);
-    password = String(esp_random(), HEX);
-
-    // Initialize the interface
-    mainPage(true);
-
-    // WIFI
-    WiFi.softAP(ssid.c_str(), password.c_str(), 1, 0, 1); // Max 1 connection
-    delay(100);
-
-    // mDNS sfyl.local
-    if (!MDNS.begin("sfyl")) {
-        Serial.println("Error setting up MDNS responder!");
-        return;
-    }
-
-    // Webserver
-    server.on("/", HTTP_GET, [](AsyncWebServerRequest *request){
-      request->send(SPIFFS, "/index.html", "text/html", false, processor);
-    });
-
-    server.on("/xpub", HTTP_GET, [](AsyncWebServerRequest *request){
-      // Fix pathcore
-      String pathcore = path;
-      pathcore.replace("m","");
-      pathcore.replace("'","h");
-
-      // Derive main xprv
+  server.on("/sign", HTTP_GET, [](AsyncWebServerRequest *request){
+    String command_arg = "";
+    if(request->hasArg("command"))
+      command_arg = request->arg("command");
+    if (command_arg == "psbt"){
       HDPrivateKey root(mnemonic, passphrase);
-      // Derive account
       HDPrivateKey account = root.derive(path);
-      HDPublicKey xpub_key = account.xpub();
-      xpub = "["+root.fingerprint()+pathcore+"]"+xpub_key.toString();
-      HDPrivateKey account_core = root.derive(path);
-      // Avoid funny name for xpub
-      account_core.type = UNKNOWN_TYPE;
-      HDPublicKey xpub_key_core = account_core.xpub();
-      xpubcore = xpub_key_core.toString();
-
-      descriptorCore = "wpkh([";
-      descriptorCore += root.fingerprint();
-      descriptorCore += pathcore + "]";
-      descriptorCore += xpubcore;
-      descriptorCore += "/0/*)";
-      descriptorCore += String("#")+descriptorChecksum(descriptorCore);
-
-      descriptorCoreChange = "wpkh([";
-      descriptorCoreChange += root.fingerprint();
-      descriptorCoreChange += pathcore + "]";
-      descriptorCoreChange += xpubcore;
-      descriptorCoreChange += "/1/*)";
-      descriptorCoreChange += String("#")+descriptorChecksum(descriptorCoreChange);
+      unsignedpsbt = request->arg("unsignedpsbt");
+      Serial.println(unsignedpsbt);
+      PSBT psbt;
+      psbt.parseBase64(unsignedpsbt);
+      delay(10);
+      // TODO decode psbt
+      // TODO shows decoded psbt in the eink
+      // TODO validate 2fa
+      delay(10);
+      psbt.sign(root);
+      signedpsbt = psbt.toBase64();
       delay(10);
 
-      // Derive address
-      HDPublicKey pub;
-      pub = xpub_key.child(0).child(0);
-      address = pub.segwitAddress(&Testnet);
-      delay(10);
-
-      request->send(SPIFFS, "/xpub.html", "text/html", false, processor);
-    });
-
-    server.on("/address", HTTP_GET, [](AsyncWebServerRequest *request){
-      String command_arg = "";
-      if(request->hasArg("command"))
-        command_arg = request->arg("command");
-      if (command_arg == "getaddress"){
-        first = request->arg("first").toInt();
-        second = request->arg("second").toInt();
-      } else {
-        first = 0;
-        second = 0;
-      }
+    } else if (command_arg == "message"){
       HDPrivateKey root(mnemonic, passphrase);
       HDPrivateKey account = root.derive(path);
-      account.type = UNKNOWN_TYPE;
-      HDPublicKey xpub = account.xpub();
-      HDPublicKey pub = xpub.child(first).child(second);
-      address = pub.segwitAddress(&Testnet);
+      HDPrivateKey priv = account.child(0).child(0);
+      address = priv.segwitAddress();
       delay(10);
       // TODO shows something on eink
-
-      request->send(SPIFFS, "/address.html", "text/html", false, processor);
-    });
-
-    server.on("/sign", HTTP_GET, [](AsyncWebServerRequest *request){
-      String command_arg = "";
-      if(request->hasArg("command"))
-        command_arg = request->arg("command");
-      if (command_arg == "psbt"){
-        HDPrivateKey root(mnemonic, passphrase);
-        HDPrivateKey account = root.derive(path);
-        unsignedpsbt = request->arg("unsignedpsbt");
-        Serial.println(unsignedpsbt);
-        PSBT psbt;
-        psbt.parseBase64(unsignedpsbt);
-        delay(10);
-        // TODO decode psbt
-        // TODO shows decoded psbt in the eink
-        // TODO validate 2fa
-        delay(10);
-        psbt.sign(root);
-        signedpsbt = psbt.toBase64();
-        delay(10);
-
-      } else if (command_arg == "message"){
-        HDPrivateKey root(mnemonic, passphrase);
-        HDPrivateKey account = root.derive(path);
-        HDPrivateKey priv = account.child(0).child(0);
-        address = priv.segwitAddress();
-        delay(10);
-        // TODO shows something on eink
-        delay(10);
-        message = request->arg("message");
-        uint8_t hash[32];
-        sha256(message.c_str(), strlen(message.c_str()), hash);
-        Signature sig = priv.sign(hash);
-        signature = String(sig);
-      }
       delay(10);
-      request->send(SPIFFS, "/sign.html", "text/html", false, processor);
-    });
+      message = request->arg("message");
+      uint8_t hash[32];
+      sha256(message.c_str(), strlen(message.c_str()), hash);
+      Signature sig = priv.sign(hash);
+      signature = String(sig);
+    }
+    delay(10);
+    request->send(SPIFFS, "/sign.html", "text/html", false, processor);
+  });
 
-    server.on("/settings", HTTP_GET, [](AsyncWebServerRequest *request){
-      String command_arg = "";
-      if(request->hasArg("command"))
-        command_arg = request->arg("command");
-      if (command_arg == "settings"){
-        // TODO implement some checks
-        network = request->arg("network");
-        mnemonic = request->arg("mnemonic");
-        passphrase = request->arg("passphrase");
-        path = request->arg("path");
-        walletModified = true;
+  server.on("/settings", HTTP_GET, [](AsyncWebServerRequest *request){
+    String command_arg = "";
+    if(request->hasArg("command"))
+      command_arg = request->arg("command");
+    if (command_arg == "settings"){
+      // TODO implement some checks
+      network = request->arg("network");
+      mnemonic = request->arg("mnemonic");
+      passphrase = request->arg("passphrase");
+      path = request->arg("path");
+      walletModified = true;
+    }
+    else if (command_arg == "load"){
+      // TODO implement some checks
+      String filename = request->arg("filenameLoad");
+      String password = request->arg("passwordLoad");
+      if (loadWallet("/"+filename+".wal", password)) {
+        walletModified = false;
+        walletName = filename;
       }
-      else if (command_arg == "load"){
-        // TODO implement some checks
-        String filename = request->arg("filenameLoad");
-        String password = request->arg("passwordLoad");
-        if (loadWallet("/"+filename+".wal", password)) {
-          walletModified = false;
-          walletName = filename;
-        }
+    }
+    else if (command_arg == "save"){
+      String filename = request->arg("filenameSave");
+      String password = request->arg("passwordSave");
+      if (saveWallet("/"+filename+".wal", password)){
+        walletModified = false;
+        walletName = filename;
       }
-      else if (command_arg == "save"){
-        String filename = request->arg("filenameSave");
-        String password = request->arg("passwordSave");
-        if (saveWallet("/"+filename+".wal", password)){
-          walletModified = false;
-          walletName = filename;
-        }
-      }
-      else if (command_arg == "delete"){
-        String filename = request->arg("filenameDelete");
-        deleteWallet("/"+filename+".wal");
-      }
-      delay(10);
-      request->send(SPIFFS, "/settings.html", "text/html", false, processor);
-    });
+    }
+    else if (command_arg == "delete"){
+      String filename = request->arg("filenameDelete");
+      deleteWallet("/"+filename+".wal");
+    }
+    delay(10);
+    request->send(SPIFFS, "/settings.html", "text/html", false, processor);
+  });
 
-    // Static files
-    server.on("/bootstrap.bundle.min.js", HTTP_GET, [](AsyncWebServerRequest *request){
-      request->send(SPIFFS, "/bootstrap.bundle.min.js", "text/javascript");
-    });
+  // Static files
+  server.on("/bootstrap.bundle.min.js", HTTP_GET, [](AsyncWebServerRequest *request){
+    request->send(SPIFFS, "/bootstrap.bundle.min.js", "text/javascript");
+  });
 
-    server.on("/jquery-3.6.0.min.js", HTTP_GET, [](AsyncWebServerRequest *request){
-      request->send(SPIFFS, "/jquery-3.6.0.min.js", "text/javascript");
-    });
+  server.on("/jquery-3.6.0.min.js", HTTP_GET, [](AsyncWebServerRequest *request){
+    request->send(SPIFFS, "/jquery-3.6.0.min.js", "text/javascript");
+  });
 
-    server.on("/bootstrap.min.css", HTTP_GET, [](AsyncWebServerRequest *request){
-      request->send(SPIFFS, "/bootstrap.min.css", "text/css");
-    });
+  server.on("/bootstrap.min.css", HTTP_GET, [](AsyncWebServerRequest *request){
+    request->send(SPIFFS, "/bootstrap.min.css", "text/css");
+  });
 
-    server.on("/qrcode.min.js", HTTP_GET, [](AsyncWebServerRequest *request){
-      request->send(SPIFFS, "/qrcode.min.js", "text/javascript");
-    });
+  server.on("/qrcode.min.js", HTTP_GET, [](AsyncWebServerRequest *request){
+    request->send(SPIFFS, "/qrcode.min.js", "text/javascript");
+  });
 
-    server.on("/bitcoin.pdf", HTTP_GET, [](AsyncWebServerRequest *request){
-      request->send(SPIFFS, "/bitcoin.pdf", "application/pdf");
-    });
+  server.on("/bitcoin.pdf", HTTP_GET, [](AsyncWebServerRequest *request){
+    request->send(SPIFFS, "/bitcoin.pdf", "application/pdf");
+  });
 
-    server.on("/btc.png", HTTP_GET, [](AsyncWebServerRequest *request){
-      request->send(SPIFFS, "/btc.png", "image/png");
-    });
+  server.on("/btc.png", HTTP_GET, [](AsyncWebServerRequest *request){
+    request->send(SPIFFS, "/btc.png", "image/png");
+  });
 
-    server.on("/favicon.ico", HTTP_GET, [](AsyncWebServerRequest *request){
-      request->send(SPIFFS, "/favicon.ico", "image/x-icon");
-    });
+  server.on("/favicon.ico", HTTP_GET, [](AsyncWebServerRequest *request){
+    request->send(SPIFFS, "/favicon.ico", "image/x-icon");
+  });
 
-    server.begin();
+  server.begin();
 }
 
 uint32_t loopMillis = 0;
 
-void loop()
-{
-    btn->loop();
+void loop(){
+  btn->loop();
 
-    if (pwIRQ) {
-        pwIRQ = false;
-        // Get interrupt status
-        power->readIRQ();
-        if (power->isPEKShortPressIRQ()) {
-            uint8_t level = twatch->bl->getLevel();
-            level = (level + 10) % 100;
-            twatch->bl->adjust(level);
-        }
-        if (power->isPEKLongtPressIRQ()) {
-            showAp =  !showAp;
-            mainPage(true);
-        }
-        // After the interruption, you need to manually clear the interruption status
-        power->clearIRQ();
-    }
+  if (pwIRQ) {
+      pwIRQ = false;
+      // Get interrupt status
+      power->readIRQ();
+      if (power->isPEKShortPressIRQ()) {
+          uint8_t level = twatch->bl->getLevel();
+          level = (level + 10) % 100;
+          twatch->bl->adjust(level);
+      }
+      if (power->isPEKLongtPressIRQ()) {
+          showAp =  !showAp;
+          mainPage(true);
+      }
+      // After the interruption, you need to manually clear the interruption status
+      power->clearIRQ();
+  }
 
-    if (millis() - loopMillis > 1000) {
-        loopMillis = millis();
-        // Partial refresh
-        mainPage(false);
-    }
+  if (millis() - loopMillis > 1000) {
+      loopMillis = millis();
+      // Partial refresh
+      mainPage(false);
+  }
 }
 
 // Created using http://javl.github.io/image2cpp/ with inverted colors
