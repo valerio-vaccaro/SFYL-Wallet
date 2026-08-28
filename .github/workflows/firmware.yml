@@ -31,16 +31,15 @@ jobs:
 
     steps:
       - name: Check out source
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: '3.11'
-          cache: pip
 
       - name: Cache PlatformIO packages
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: ${{ env.PLATFORMIO_CORE_DIR }}
           key: ${{ runner.os }}-platformio-${{ hashFiles('platformio.ini') }}
@@ -68,7 +67,7 @@ jobs:
           } > firmware/README.txt
 
       - name: Upload firmware artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: sfyl-wallet-firmware-${{ github.sha }}
           path: firmware/
