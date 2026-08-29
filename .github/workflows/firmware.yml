@@ -8,6 +8,7 @@ on:
       - 'include/**'
       - 'lib/**'
       - 'platformio.ini'
+      - 'scripts/flash-firmware.sh'
       - '.github/workflows/firmware.yml'
   pull_request:
     paths:
@@ -15,6 +16,7 @@ on:
       - 'include/**'
       - 'lib/**'
       - 'platformio.ini'
+      - 'scripts/flash-firmware.sh'
       - '.github/workflows/firmware.yml'
   workflow_dispatch:
 
@@ -59,11 +61,15 @@ jobs:
           cp "$BUILD_DIR/bootloader.bin" firmware/
           cp "$BUILD_DIR/partitions.bin" firmware/
           cp "$PLATFORMIO_CORE_DIR/packages/framework-arduinoespressif32/tools/partitions/boot_app0.bin" firmware/
+          cp scripts/flash-firmware.sh firmware/flash.sh
+          chmod +x firmware/flash.sh
           {
             echo "SFYL Wallet firmware build"
             echo "Commit: $GITHUB_SHA"
             echo
-            echo "Flash with PlatformIO: pio run -e ttgo-t-watch -t upload"
+            echo "Flash the downloaded artifact: ./flash.sh [serial-port]"
+            echo "Example: ./flash.sh /dev/ttyUSB0"
+            echo "The script requires Python 3 and esptool (python3 -m pip install --user esptool)."
           } > firmware/README.txt
 
       - name: Upload firmware artifact
